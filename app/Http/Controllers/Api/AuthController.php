@@ -46,6 +46,15 @@ class AuthController extends Controller
                 ]
             );
 
+            $userOld = User::where('email', '=', $request->email)->first();
+
+            if ($userOld) {
+                return response()->json([
+                    'status' => 'false',
+                    'message' => 'User already exists'
+                ], 400);
+            }
+
             $newUser = new User();
             $newUser->name = $request->name;
             $newUser->email = $request->email;
@@ -55,14 +64,14 @@ class AuthController extends Controller
             if ($newUser) {
                 return response()->json([
                     'status' => 'true',
-                    'message' => 'create user successfully',
+                    'message' => 'Create user successfully',
                     'data' => new AuthResource($newUser),
                 ]);
             }
 
             return response()->json([
                 'status' => 'false',
-                'message' => 'user cannot create'
+                'message' => 'User cannot create'
             ], 401);
         } catch (\Throwable $th) {
             return response()->json([
