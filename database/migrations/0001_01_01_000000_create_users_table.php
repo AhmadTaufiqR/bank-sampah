@@ -12,12 +12,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
+            $table->id('id_user');
+            $table->string('user_name');
+            $table->string('user_password');
+            $table->string('phone')->nullable();
+            $table->string('address')->nullable();
+            $table->string('photo')->nullable();
+            $table->string('nik')->nullable();
+            $table->string('jenis_kelamin')->nullable();
+            $table->string('email')->nullable()->unique();
+            $table->date('tanggal_lahir')->nullable();
+            $table->decimal('balance', 15, 2)->default(0)->nullable(); // Total saldo tabungan
+            $table->integer('withdrawal_count')->default(0)->nullable();
+            $table->decimal('withdrawal_amount', 15, 2)->default(0)->nullable();
+            $table->boolean('is_primary')->default(false)->nullable(); // Menambahkan kolom untuk rekening utama
             $table->timestamps();
         });
 

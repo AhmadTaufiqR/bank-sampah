@@ -1,50 +1,82 @@
 <?php
+// app/Models/User.php
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Passport\Contracts\OAuthenticatable;
-use Laravel\Passport\HasApiTokens;
 
-class User extends Authenticatable implements OAuthenticatable
+class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    protected $table = 'users';
+    protected $primaryKey = 'id_user';
+
     protected $fillable = [
-        'name',
+        'user_name',
+        'user_password',
+        'phone',
+        'address',
+        'photo',
+        'balance',
+        'withdrawal_count',
+        'withdrawal_amount',
+        'nik',
+        'jenis_kelamin',
         'email',
-        'password',
+        'tanggal_lahir'
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
-        'password',
+        'user_password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected $casts = [
+        'user_password' => 'hashed',
+        'balance' => 'decimal:2',
+        'withdrawal_amount' => 'decimal:2',
+        'withdrawal_count' => 'integer',
+    ];
+
+    // Relationships
+    public function bankBalances()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(BankBalance::class, 'id_user', 'id_user');
     }
+
+    public function withdrawals()
+    {
+        return $this->hasMany(Withdrawal::class, 'id_user', 'id_user');
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'id_user', 'id_user');
+    }
+
+    public function wasteTypes()
+    {
+        return $this->hasMany(WasteType::class, 'id_user', 'id_user');
+    }
+
+    public function wasteTransactions()
+    {
+        return $this->hasMany(WasteTransaction::class, 'id_user', 'id_user');
+    }
+
+    // Accessor & Mutator
+    public function getFormattedBalanceAttribute()
+    {
+        return 'Rp ' . number_format($this->balance, 0, ',', '.');
+    }
+
+    // Scopes
+    public function scopeWithPositiveBalance($query)
+    {
+        return $query->where('balance', '>', 0);
+    }
+
 }
