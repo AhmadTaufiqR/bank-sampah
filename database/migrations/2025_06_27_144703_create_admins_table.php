@@ -12,11 +12,15 @@ return new class extends Migration
             $table->id('id_admin');
             $table->string('admin_name');
             $table->string('email')->unique();
-            $table->string('admin_username')->unique();
-            $table->string('admin_password');
-            $table->string('phone');
-            $table->string('address');
+            $table->string('admin_password')->nullable();
+            $table->string('username')->unique()->nullable();
+            $table->string('phone')->nullable();
+            $table->string('nik')->nullable();
+            $table->string('jenis_kelamin')->nullable();
+            $table->string('tanggal_lahir')->nullable();
+            $table->string('address')->nullable();
             $table->string('photo')->nullable();
+            $table->string('fcm_token')->nullable();
             $table->timestamps();
         });
     }

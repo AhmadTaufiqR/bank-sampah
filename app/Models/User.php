@@ -16,6 +16,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'user_name',
+        'username',
         'user_password',
         'phone',
         'address',
@@ -26,7 +27,8 @@ class User extends Authenticatable
         'nik',
         'jenis_kelamin',
         'email',
-        'tanggal_lahir'
+        'tanggal_lahir',
+        'fcm_token'
     ];
 
     protected $hidden = [
@@ -78,5 +80,4 @@ class User extends Authenticatable
     {
         return $query->where('balance', '>', 0);
     }
-
 }

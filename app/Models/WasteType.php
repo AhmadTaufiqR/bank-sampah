@@ -14,7 +14,6 @@ class WasteType extends Model
     protected $primaryKey = 'id_waste_type';
 
     protected $fillable = [
-        'id_user',
         'id_admin',
         'waste_type',
         'price',

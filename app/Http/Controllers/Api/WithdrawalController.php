@@ -2,20 +2,24 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\FcmHelper;
 use App\Http\Controllers\Controller;
+use App\Models\BankBalance;
+use App\Models\Notification;
 use App\Models\User;
 use App\Models\Withdrawal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class WithdrawalController extends Controller
 {
     // ... (metode lain seperti getSavingsDetails, dll. tetap ada)
 
-    public function getSavingsDetails($username)
+    public function getSavingsDetails($email)
     {
-        $user = User::where('username', $username)->first();
+        $user = User::where('email', $email)->first();
 
         if (!$user) {
             return response()->json([
@@ -27,132 +31,128 @@ class WithdrawalController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
-                'total_balance' => number_format($user->balance, 2, ',', '.') . ' Rp',
+                'total_balance' => 'Rp. ' . number_format($user->balance, 2, ',', '.'),
                 'account_count' => 1, // Asumsi 1 rekening per user untuk saat ini
-                'username' => $user->username,
-                'balance_per_account' => number_format($user->balance, 2, ',', '.') . ' Rp',
+                'username' => $user->user_name,
+                'balance_per_account' => 'Rp. ' . number_format($user->balance, 2, ',', '.'),
                 'is_primary' => $user->is_primary,
             ]
         ]);
     }
 
-    public function createWithdrawal(Request $request, $username)
-    {
-        // Cari pengguna berdasarkan username
-        $user = User::where('username', $username)->first();
 
-        if (!$user) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'User not found'
-            ], 404);
-        }
+    // public function createWithdrawal(Request $request, $email)
+    // {
+    //     // Cari pengguna berdasarkan email
+    //     $user = User::where('email', $email)->first();
 
-        // Validasi data
-        $validator = Validator::make($request->all(), [
-            'amount' => [
-                'required',
-                'numeric',
-                'min:1000', // Minimum penarikan, misalnya Rp1.000
-                function ($attribute, $value, $fail) use ($user) {
-                    if ($value > $user->balance) {
-                        $fail('Jumlah penarikan melebihi saldo Anda (Rp. ' . number_format($user->balance, 2, ',', '.') . ').');
-                    }
-                    if ($value <= 0) {
-                        $fail('Jumlah penarikan harus lebih dari Rp0.');
-                    }
-                }
-            ],
-        ]);
+    //     if (!$user) {
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'message' => 'User not found'
+    //         ], 404);
+    //     }
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $validator->errors()
-            ], 400);
-        }
+    //     // Validasi data
+    //     $validator = Validator::make($request->all(), [
+    //         'amount' => [
+    //             'required',
+    //             'numeric',
+    //             'min:1000', // Minimum penarikan, misalnya Rp1.000
+    //             function ($attribute, $value, $fail) use ($user) {
+    //                 if ($value > $user->balance) {
+    //                     $fail('Jumlah penarikan melebihi saldo Anda (Rp. ' . number_format($user->balance, 2, ',', '.') . ').');
+    //                 }
+    //                 if ($value <= 0) {
+    //                     $fail('Jumlah penarikan harus lebih dari Rp0.');
+    //                 }
+    //             }
+    //         ],
+    //     ]);
 
-        // Buat entri penarikan (saldo belum dikurangi sampai disetujui)
-        $withdrawal = Withdrawal::create([
-            'id_user' => $user->id_user,
-            'user_name' => $user->user_name,
-            'withdrawal_date' => now()->toDateString(),
-            'withdrawal_amount' => $request->amount,
-            'status' => 'pending',
-        ]);
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'message' => $validator->errors()
+    //         ], 400);
+    //     }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'id' => $withdrawal->id_withdrawal,
-                'user_name' => $withdrawal->user_name,
-                'amount' => number_format($withdrawal->withdrawal_amount, 2, ',', '.') . ' Rp',
-                'date' => $withdrawal->withdrawal_date,
-                'status' => $withdrawal->status,
-            ]
-        ], 201);
-    }
+    //     // Buat entri penarikan (saldo belum dikurangi sampai disetujui)
+    //     $withdrawal = Withdrawal::create([
+    //         'id_user' => $user->id_user,
+    //         'user_name' => $user->user_name,
+    //         'withdrawal_date' => now()->toDateString(),
+    //         'withdrawal_amount' => $request->amount,
+    //         'status' => 'pending',
+    //     ]);
+
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'data' => [
+    //             'id' => $withdrawal->id_withdrawal,
+    //             'user_name' => $withdrawal->user_name,
+    //             'amount' => number_format($withdrawal->withdrawal_amount, 2, ',', '.') . ' Rp',
+    //             'date' => $withdrawal->withdrawal_date,
+    //             'status' => $withdrawal->status,
+    //         ]
+    //     ], 201);
+    // }
 
     public function verifyWithdrawal(Request $request, $id)
     {
-        // Cari penarikan berdasarkan ID
-        $withdrawal = Withdrawal::find($id);
+        $withdrawal = Withdrawal::with('user')->findOrFail($id);
 
-        if (!$withdrawal) {
+        if ($withdrawal->status !== 'pending') {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Withdrawal not found'
-            ], 404);
-        }
-
-        // Validasi input
-        $validator = Validator::make($request->all(), [
-            'action' => 'required|in:setuju,tolak',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $validator->errors()
+                'message' => 'Hanya penarikan dengan status "pending" yang bisa diverifikasi.'
             ], 400);
         }
 
-        // Ambil ID admin yang sedang login (asumsi autentikasi sudah diatur)
-        $adminId = Auth::guard('admin')->id(); // Sesuaikan dengan guard yang digunakan
+        DB::beginTransaction();
+        try {
+            // Hanya ubah status menjadi verified
+            $withdrawal->update([
+                'status' => 'verified',
+                'admin_verified_by' => $request->admin_id
+            ]);
 
-        // Perbarui status berdasarkan aksi
-        $status = $request->action === 'setuju' ? 'approved' : 'rejected';
-        $withdrawal->update([
-            'status' => $status,
-            'admin_verified_by' => $adminId,
-        ]);
+            DB::commit();
+            Notification::create([
+                'id_user' => $withdrawal->id_user,
+                'id_admin' => 1, // Tidak ada admin yang memverifikasi
+                'message_content' => 'Penarikan Rp. ' . $withdrawal->withdrawal_amount . ' diverifikasi oleh admin',
+                'date' => now()->toDateString(),
+                'status' => 'verified', // Bisa diganti jadi 'verified' jika langsung aktif
+            ]);
 
-        // Jika disetujui, kurangi saldo pengguna
-        if ($status === 'approved') {
-            $user = $withdrawal->user;
-            $user->balance -= $withdrawal->withdrawal_amount;
-            $user->withdrawal_count += 1;
-            $user->withdrawal_amount += $withdrawal->withdrawal_amount;
-            $user->save();
+            $result = FcmHelper::sendNotificationToDeviceUser(
+                $withdrawal->user->fcm_token,
+                'Penerikan berhasil disetujui',
+                'Penarikan Rp. ' . $withdrawal->withdrawal_amount . ' diverifikasi oleh admin',
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Penarikan berhasil diverifikasi.',
+                'data' => $result,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Verifikasi gagal: ' . $e->getMessage()
+            ]);
         }
-
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'id' => $withdrawal->id_withdrawal,
-                'user_name' => $withdrawal->user_name,
-                'amount' => number_format($withdrawal->withdrawal_amount, 2, ',', '.') . ' Rp',
-                'date' => $withdrawal->withdrawal_date,
-                'status' => $withdrawal->status,
-                'verified_by' => $withdrawal->admin_verified_by,
-            ]
-        ]);
     }
 
     // Metode opsional untuk mengambil daftar penarikan yang perlu diverifikasi
-    public function getPendingWithdrawals()
+    public function getWithdrawalsWithPriority()
     {
-        $withdrawals = Withdrawal::where('status', 'pending')->get();
+        $withdrawals = Withdrawal::select('*')
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END") // Pending paling atas
+            ->orderByDesc('created_at') // Lalu urutkan dari yang terbaru
+            ->get();
 
         return response()->json([
             'status' => 'success',
@@ -160,11 +160,85 @@ class WithdrawalController extends Controller
                 return [
                     'id' => $item->id_withdrawal,
                     'user_name' => $item->user_name,
-                    'amount' => number_format($item->withdrawal_amount, 2, ',', '.') . ' Rp',
+                    'amount' => 'Rp. ' . number_format($item->withdrawal_amount, 2, ',', '.'),
                     'date' => $item->withdrawal_date,
                     'status' => $item->status,
                 ];
             })
         ]);
+    }
+
+    public function rejectWithdrawal(Request $request, $id)
+    {
+        $withdrawal = Withdrawal::with('user')->findOrFail($id);
+
+        if ($withdrawal->status !== 'pending') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Hanya penarikan dengan status "pending" yang bisa ditolak.'
+            ], 400);
+        }
+
+        $user = User::findOrFail($withdrawal->id_user);
+
+        if ($withdrawal->withdrawal_amount <= 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Jumlah penarikan tidak valid.'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Kembalikan saldo user
+            $user->balance += $withdrawal->withdrawal_amount;
+            if (!$user->save()) {
+                throw new \Exception('Gagal menyimpan perubahan saldo user');
+            }
+
+            // Hapus entri di bank_balances
+            $bankBalance = BankBalance::where('id_user', $user->id_user)
+                ->where('total_balance', $withdrawal->withdrawal_amount)
+                ->where('transaction_type', 'cash_out')
+                ->whereDate('date', $withdrawal->withdrawal_date)
+                ->first();
+
+            if ($bankBalance) {
+                $bankBalance->delete(); // Hapus dari database
+            }
+
+            // Update status penarikan
+            $withdrawal->update([
+                'status' => 'rejected',
+                'admin_verified_by' => $request->admin_id
+            ]);
+
+            DB::commit();
+
+            Notification::create([
+                'id_user' => $withdrawal->id_user,
+                'id_admin' => 1, // Tidak ada admin yang memverifikasi
+                'message_content' => 'Penarikan Rp. ' . $withdrawal->withdrawal_amount . ' ditolak oleh admin',
+                'date' => now()->toDateString(),
+                'status' => 'rejected', // Bisa diganti jadi 'verified' jika langsung aktif
+            ]);
+
+            $result = FcmHelper::sendNotificationToDeviceUser(
+                $withdrawal->user->fcm_token,
+                'Penerikan ditolak',
+                'Penarikan sebesar Rp. ' . $withdrawal->withdrawal_amount . ' ditolak oleh admin',
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Penarikan berhasil ditolak, saldo telah dikembalikan, dan riwayat transaksi dihapus.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menolak penarikan: ' . $e->getMessage()
+            ]);
+        }
     }
 }

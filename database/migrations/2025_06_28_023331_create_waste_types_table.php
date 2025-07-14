@@ -10,14 +10,12 @@ return new class extends Migration
     {
         Schema::create('waste_types', function (Blueprint $table) {
             $table->id('id_waste_type');
-            $table->unsignedBigInteger('id_user');
             $table->unsignedBigInteger('id_admin');
             $table->string('waste_type');
             $table->decimal('price', 10, 2);
             $table->string('photo')->nullable(); // Menambahkan kolom untuk foto
             $table->timestamps();
 
-            $table->foreign('id_user')->references('id_user')->on('users')->onDelete('cascade');
             $table->foreign('id_admin')->references('id_admin')->on('admins')->onDelete('cascade');
         });
     }

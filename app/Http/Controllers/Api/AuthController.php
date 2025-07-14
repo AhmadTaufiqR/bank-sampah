@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\FcmHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AuthResource;
 use App\Models\Admin;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -18,7 +20,7 @@ class AuthController extends Controller
             // Validate input
             $request->validate([
                 'email' => 'required|email',
-                'user_password' => 'required',
+                'fcm_token' => 'required',
             ]);
 
             // Find user by email
@@ -27,12 +29,17 @@ class AuthController extends Controller
 
             // Check if user exists and password matches
             if ($user && Hash::check($request->user_password, $user->user_password)) {
+                $user->update(
+                    ['fcm_token' => $request->fcm_token]
+                );
                 return response()->json([
                     'status' => true,
                     'message' => 'Login successful',
                     'data' => new AuthResource($user),
                 ], 200);
             }
+
+
 
             // Return specific error for incorrect credentials
             return response()->json([
@@ -53,6 +60,7 @@ class AuthController extends Controller
         }
     }
 
+
     public function authRegister(Request $request)
     {
         try {
@@ -60,7 +68,6 @@ class AuthController extends Controller
             $request->validate([
                 'user_name' => 'required|string|max:255',
                 'email' => 'nullable|email|unique:users,email',
-                'user_password' => 'required|string|min:8',
                 'phone' => 'nullable|string|max:255',
                 'address' => 'nullable|string|max:255',
                 'photo' => 'nullable|string|max:255',
@@ -82,6 +89,15 @@ class AuthController extends Controller
             $user->tanggal_lahir = $request->tanggal_lahir;
             // Default values for nullable fields are handled by schema (balance, withdrawal_count, withdrawal_amount, is_primary)
             $user->save();
+
+            // Buat notifikasi untuk user yang baru terdaftar
+            Notification::create([
+                'id_user' => $user->id_user,
+                'id_admin' => 1, // Tidak ada admin yang memverifikasi
+                'message_content' => 'Selamat datang di aplikasi bank sampah!',
+                'date' => now()->toDateString(),
+                'status' => "register", // Bisa diganti jadi 'verified' jika langsung aktif
+            ]);
 
             return response()->json([
                 'status' => true,
@@ -105,7 +121,7 @@ class AuthController extends Controller
     {
         try {
 
-            $adminOld = Admin::where('admin_username', '=', $request->admin_username)->first();
+            $adminOld = Admin::where('email', '=', $request->email)->first();
 
             if ($adminOld) {
                 return response()->json([
@@ -116,8 +132,8 @@ class AuthController extends Controller
 
             $newUser = new Admin();
             $newUser->admin_name = $request->admin_name;
-            $newUser->admin_username = $request->admin_username;
-            $newUser->admin_password = Hash::make($request->admin_password);
+            $newUser->email = $request->email;
+            // $newUser->admin_password = Hash::make($request->admin_password);
             $newUser->phone = $request->phone;
             $newUser->address = $request->address;
             $newUser->photo = $request->photo;
@@ -146,19 +162,22 @@ class AuthController extends Controller
     public function authLoginAdmin(Request $request)
     {
         try {
-            $response = Admin::where('admin_username', '=', $request->admin_username)->first();
-            if ($response && Hash::check($request->admin_password, $response->admin_password)) {
-                return response()->json([
-                    'status' => 'true',
-                    'message' => 'Admin find',
-                    'data' => $response,
-                ], 200);
-            }
+            $response = Admin::where('email', '=', $request->email)->first();
+
+            $response->update(
+                ['fcm_token' => $request->fcm_token]
+            );
 
             return response()->json([
-                'status' => 'false',
-                'message' => 'Admin not found'
-            ], 401);
+                'status' => 'true',
+                'message' => 'Admin find',
+                'data' => $response,
+            ], 200);
+
+            // return response()->json([
+            //     'status' => 'false',
+            //     'message' => 'Admin not found'
+            // ], 401);
         } catch (\Throwable $th) {
             return response()->json([
                 'status' => 'false',

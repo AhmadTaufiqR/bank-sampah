@@ -14,7 +14,7 @@ return new class extends Migration
             $table->unsignedBigInteger('id_admin')->nullable(); // Bisa null jika belum diverifikasi
             $table->string('message_content');
             $table->date('date');
-            $table->string('status')->default('pending'); // Menambahkan status: pending, verified, rejected
+            $table->string('status')->nullable(); // Menambahkan status: pending, verified, rejected
             $table->timestamps();
 
             $table->foreign('id_user')->references('id_user')->on('users')->onDelete('cascade');

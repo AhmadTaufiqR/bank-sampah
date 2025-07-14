@@ -18,7 +18,8 @@ class BankBalance extends Model
         'id_user',
         'total_balance',
         'description',
-        'date'
+        'date',
+        'transaction_type'
     ];
 
     protected $casts = [

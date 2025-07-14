@@ -17,7 +17,8 @@ class Notification extends Model
         'id_user',
         'id_admin',
         'message_content',
-        'date'
+        'date',
+        'status',
     ];
 
     protected $casts = [

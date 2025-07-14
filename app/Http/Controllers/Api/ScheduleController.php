@@ -19,15 +19,14 @@ class ScheduleController extends Controller
                 return [
                     'id' => $item->id_schedule,
                     'month' => $item->month,
-                    'dates' => $item->dates,
-                    'activity' => $item->activity,
+                    'dates' => json_decode($item->dates, true),
                     'photo' => $item->photo,
                 ];
             })
         ]);
     }
 
-    public function updateSchedule(Request $request, $id)
+    public function updateDates(Request $request, $id)
     {
         $schedule = WasteCollectionSchedule::find($id);
 
@@ -39,10 +38,7 @@ class ScheduleController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'month' => 'string|max:255',
-            'dates' => 'array',
-            'activity' => 'string|max:255',
-            'photo' => 'string|max:255',
+            'dates' => 'required|array', // Expect dates as an array
         ]);
 
         if ($validator->fails()) {
@@ -52,22 +48,68 @@ class ScheduleController extends Controller
             ], 400);
         }
 
+        // Parse dates if sent as a string (e.g., "[\"2025-07-05\",\"2025-07-12\"]")
+        $dates = is_string($request->dates) ? json_decode($request->dates, true) : $request->dates;
+
+        // Update only the dates field, keeping other fields unchanged
         $schedule->update([
-            'month' => $request->month ?? $schedule->month,
-            'dates' => $request->dates ?? $schedule->dates,
-            'activity' => $request->activity ?? $schedule->activity,
-            'photo' => $request->photo ?? $schedule->photo,
+            'dates' => json_encode($dates), // Store as JSON string
         ]);
+
+        // Prepare response with decoded dates for consistency
+        $updatedSchedule = [
+            'id' => $schedule->id_schedule,
+            'month' => $schedule->month,
+            'dates' => json_decode($schedule->dates, true), // Decode back to array for response
+            'photo' => $schedule->photo,
+        ];
 
         return response()->json([
             'status' => 'success',
-            'data' => [
+            'data' => $updatedSchedule
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            '*.month' => 'required|string|max:255',
+            '*.dates' => 'required|array', // Expect dates as an array
+            '*.photo' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validator->errors()
+            ], 400);
+        }
+
+        $schedulesData = $request->all();
+        $insertedSchedules = [];
+
+        foreach ($schedulesData as $data) {
+            // Parse dates if sent as a string (e.g., "[\"2025-07-05\",\"2025-07-12\"]")
+            $dates = is_string($data['dates']) ? json_decode($data['dates'], true) : $data['dates'];
+
+            $schedule = WasteCollectionSchedule::create([
+                'id_admin' => $data['id_admin'] ?? 1, // Default to 1 if not provided
+                'month' => $data['month'],
+                'dates' => json_encode($dates), // Store as JSON string
+                'photo' => $data['photo'],
+            ]);
+
+            $insertedSchedules[] = [
                 'id' => $schedule->id_schedule,
                 'month' => $schedule->month,
-                'dates' => $schedule->dates,
-                'activity' => $schedule->activity,
+                'dates' => json_decode($schedule->dates, true), // Decode back to array for response
                 'photo' => $schedule->photo,
-            ]
-        ]);
+            ];
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $insertedSchedules
+        ], 201);
     }
 }
