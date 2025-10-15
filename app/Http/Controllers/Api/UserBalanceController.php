@@ -40,34 +40,55 @@ class UserBalanceController extends Controller
             ->orderBy('id_balance', 'desc')
             ->get();
 
-        // Kelompokkan berdasarkan batch_code
-        $grouped = $transactions->groupBy('batch_code')->map(function ($group) {
-            // Ambil transaksi terbaru (berdasarkan date)
-            $latest = $group->sortByDesc('date')->first();
+        // Pisahkan cash_in dan cash_out
+        $cashIn = $transactions->where('transaction_type', 'cash_in');
+        $cashOut = $transactions->where('transaction_type', 'cash_out');
 
-            // Hitung total saldo untuk batch_code ini
-            $total = $group->sum('total_balance');
+        // Group cash_in berdasarkan batch_code
+        $groupedCashIn = $cashIn->whereNotNull('batch_code')
+            ->groupBy('batch_code')
+            ->map(function ($group) {
+                $latest = $group->sortByDesc('date')->first();
+                $total = $group->sum('total_balance');
 
-            $type = $latest->transaction_type === 'cash_in' ? 'Cash in' : 'Cash out';
-            $description = $latest->transaction_type === 'cash_in'
-                ? "$type already in your pocket"
-                : "$type transferred to your bank account";
+                $type = 'Cash in';
+                $description = "$type already in your pocket";
+
+                return [
+                    'type' => $type,
+                    'amount' => "Rp " . number_format($total, 2, ',', '.'),
+                    'description' => $description,
+                    'batch_code' => $latest->batch_code,
+                    'date' => $latest->date,
+                ];
+            });
+
+        // Cash out langsung tampilkan tanpa grouping
+        $mappedCashOut = $cashOut->map(function ($transaction) {
+            $type = 'Cash out';
+            $description = "$type transferred to your bank account";
 
             return [
                 'type' => $type,
-                'amount' => "Rp " . number_format($total, 2, ',', '.'),
+                'amount' => "Rp " . number_format($transaction->total_balance, 2, ',', '.'),
                 'description' => $description,
-                'batch_code' => $latest->batch_code,
-                'date' => $latest->date,
+                'batch_code' => $transaction->batch_code,
+                'date' => $transaction->date,
             ];
-        })->values(); // reset index array
+        });
+
+        // Gabungkan hasil cash_in (grouped) dan cash_out (individual)
+        $history = $groupedCashIn->merge($mappedCashOut)
+            ->sortByDesc('date')
+            ->values();
 
         return response()->json([
             'saldo' => "Rp " . number_format($balance, 2, ',', '.'),
             'username' => $user->user_name,
-            'history' => $grouped
+            'history' => $history
         ]);
     }
+
     /**
      * Create a new cash-out transaction and update user balance
      *
