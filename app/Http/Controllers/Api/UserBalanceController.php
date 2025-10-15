@@ -47,6 +47,7 @@ class UserBalanceController extends Controller
                     'type' => $type,
                     'amount' => "Rp " . number_format($transaction->total_balance, 2, ',', '.'),
                     'description' => $description,
+                    'batch_code' => $transaction->batch_code,
                     'date' => $transaction->date,
                 ];
             });
