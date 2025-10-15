@@ -35,27 +35,37 @@ class UserBalanceController extends Controller
 
         $balance = $user->balance ?? 0.00;
 
-        $history = BankBalance::where('id_user', $user->id_user)
+        // Ambil semua transaksi
+        $transactions = BankBalance::where('id_user', $user->id_user)
             ->orderBy('id_balance', 'desc')
-            ->get()
-            ->map(function ($transaction) {
-                $type = $transaction->transaction_type === 'cash_in' ? 'Cash in' : 'Cash out';
-                $description = $transaction->transaction_type === 'cash_in'
-                    ? "$type already in your pocket"
-                    : "$type transferred to your bank account";
-                return [
-                    'type' => $type,
-                    'amount' => "Rp " . number_format($transaction->total_balance, 2, ',', '.'),
-                    'description' => $description,
-                    'batch_code' => $transaction->batch_code,
-                    'date' => $transaction->date,
-                ];
-            });
+            ->get();
+
+        // Kelompokkan berdasarkan batch_code
+        $grouped = $transactions->groupBy('batch_code')->map(function ($group) {
+            // Ambil transaksi terbaru (berdasarkan date)
+            $latest = $group->sortByDesc('date')->first();
+
+            // Hitung total saldo untuk batch_code ini
+            $total = $group->sum('total_balance');
+
+            $type = $latest->transaction_type === 'cash_in' ? 'Cash in' : 'Cash out';
+            $description = $latest->transaction_type === 'cash_in'
+                ? "$type already in your pocket"
+                : "$type transferred to your bank account";
+
+            return [
+                'type' => $type,
+                'amount' => "Rp " . number_format($total, 2, ',', '.'),
+                'description' => $description,
+                'batch_code' => $latest->batch_code,
+                'date' => $latest->date,
+            ];
+        })->values(); // reset index array
 
         return response()->json([
             'saldo' => "Rp " . number_format($balance, 2, ',', '.'),
             'username' => $user->user_name,
-            'history' => $history
+            'history' => $grouped
         ]);
     }
     /**
