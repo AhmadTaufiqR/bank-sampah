@@ -73,6 +73,7 @@ Route::get('/balance-history/{email}', [UserBalanceController::class, 'getBalanc
 Route::post('/transaction', [UserBalanceController::class, 'createTransaction']);
 Route::post('/waste-transaction', [UserBalanceController::class, 'createWasteTransaction']);
 Route::get('/history-transaction/{id}', [UserBalanceController::class, 'showByDateRaw']);
+Route::get('/waste-transaction/{batch_code}', [UserBalanceController::class, 'getWasteTransactionDetail']);
 
 Route::get('/bank-balance', [BankController::class, 'index']);
 

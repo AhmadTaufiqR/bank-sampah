@@ -188,6 +188,7 @@ class UserBalanceController extends Controller
         $weight = $request->weight;
         $description = $request->description;
         $id_admin = $request->id_admin;
+        $batch_code = $request->batch_code;
 
         // Get price from waste_types
         $wastePrice = WasteType::where('waste_type', $wasteType)->first()->price ?? 0;
@@ -196,6 +197,7 @@ class UserBalanceController extends Controller
         DB::beginTransaction();
 
         try {
+
             // Handle photo upload
             $photoPath = null;
             if ($request->hasFile('photo')) {
@@ -215,6 +217,7 @@ class UserBalanceController extends Controller
                 'waste_type' => $wasteType,
                 'weight' => $weight,
                 'description' => $description,
+                'batch_code' => $batch_code,
                 'price' => $amount,
                 'photo' => $photoPath, // Simpan path foto
             ]);
@@ -225,6 +228,7 @@ class UserBalanceController extends Controller
                 'id_user' => $user->id_user,
                 'total_balance' => $amount,
                 'transaction_type' => 'cash_in',
+                'batch_code' => $batch_code,
                 'description' => $description ?? "Cash in from waste transaction",
                 'date' => now()->toDateString(),
             ]);
@@ -263,6 +267,55 @@ class UserBalanceController extends Controller
             ], 500);
         }
     }
+
+    public function getWasteTransactionDetail($batch_code)
+    {
+        // Ambil semua transaksi berdasarkan batch_code
+        $transactions = WasteTransaction::with('user')
+            ->where('batch_code', $batch_code)
+            ->get();
+
+        if ($transactions->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Setoran tidak ditemukan',
+            ], 404);
+        }
+
+        // Ambil user dari transaksi pertama (karena semua batch_code sama user-nya)
+        $user = $transactions->first()->user;
+
+        // Hitung total berat dan total harga
+        $totalWeight = $transactions->sum('weight');
+        $totalPrice = $transactions->sum('price');
+
+        // Bentuk detail tiap jenis sampah
+        $details = $transactions->map(function ($item) {
+            return [
+                'waste_type' => $item->waste_type,
+                'weight' => $item->weight,
+                'price' => $item->price,
+                'description' => $item->description,
+                'photo' => $item->photo ? asset('storage/' . $item->photo) : null,
+                'created_at' => $item->created_at->format('Y-m-d H:i:s'),
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'deposit' => [
+                'batch_code' => $batch_code,
+                'user_name' => $user->user_name ?? null,
+                'email' => $user->email ?? null,
+                'total_weight' => $totalWeight,
+                'total_price' => $totalPrice,
+                'total_waste_types' => $transactions->count(),
+                'created_at' => $transactions->first()->created_at->format('Y-m-d H:i:s'),
+            ],
+            'details' => $details,
+        ], 200);
+    }
+
 
 
     public function showByDateRaw($id)

@@ -19,6 +19,7 @@ class BankBalance extends Model
         'total_balance',
         'description',
         'date',
+        'batch_code',
         'transaction_type'
     ];
 

@@ -19,6 +19,7 @@ class WasteTransaction extends Model
         'weight',
         'description',
         'price',
+        'batch_code',
         'photo'
     ];
 
