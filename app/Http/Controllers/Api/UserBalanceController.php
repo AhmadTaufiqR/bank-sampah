@@ -263,4 +263,45 @@ class UserBalanceController extends Controller
             ], 500);
         }
     }
+
+
+    public function showByDateRaw($id)
+    {
+        $user = User::findOrFail($id);
+
+        // ambil semua transaksi user
+        $transactions = WasteTransaction::where('id_user', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // kalau tidak ada transaksi
+        if ($transactions->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User ini belum memiliki transaksi',
+                'user' => [
+                    'id_user' => $user->id_user,
+                    'name' => $user->user_name,
+                    'email' => $user->email,
+                ],
+                'transactions_by_date' => []
+            ]);
+        }
+
+        // jika ada transaksi → kelompokkan berdasarkan tanggal
+        $transactionsByDate = $transactions->groupBy(function ($item) {
+            return $item->created_at->format('Y-m-d');
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Riwayat setoran sampah user (tanpa total per jenis)',
+            'user' => [
+                'id_user' => $user->id_user,
+                'name' => $user->user_name,
+                'email' => $user->email,
+            ],
+            'transactions_by_date' => $transactionsByDate
+        ]);
+    }
 }

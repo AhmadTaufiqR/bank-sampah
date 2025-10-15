@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EmailController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\UserBalanceController;
 use App\Http\Controllers\Api\UserController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\WasteTypeController;
 use App\Http\Controllers\Api\WithdrawalController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Maatwebsite\Excel\Facades\Excel;
 
 // Route::get('/user', function (Request $request) {
 //     return $request->user();
@@ -48,6 +50,7 @@ Route::delete('/waste-types/{id}', [WasteTypeController::class, 'deleteWasteType
 Route::get('/schedules', [ScheduleController::class, 'getSchedules']);
 Route::post('/schedules', [ScheduleController::class, 'store']);
 Route::put('/schedules/{id}', [ScheduleController::class, 'updateDates']);
+Route::delete('/schedules', [ScheduleController::class, 'deleteAll']);
 
 
 Route::post('/profile-update/{email}', [UserController::class, 'updateProfile']);
@@ -56,6 +59,7 @@ Route::post('/profile-update/admin/{email}', [UserController::class, 'updateProf
 Route::get('profile/admin/{email}', [UserController::class, 'userProfileAdmin']);
 Route::get('profile/detail/admin/{email}', [UserController::class, 'getUserProfile']);
 Route::get('profile/list/admin', [UserController::class, 'getUserList']);
+Route::get('/users/ranking', [UserController::class, 'getUserRanking']);
 
 
 Route::get('/savings/{email}', [WithdrawalController::class, 'getSavingsDetails']);
@@ -68,9 +72,16 @@ Route::get('/pending-withdrawals', [WithdrawalController::class, 'getWithdrawals
 Route::get('/balance-history/{email}', [UserBalanceController::class, 'getBalanceAndHistory']);
 Route::post('/transaction', [UserBalanceController::class, 'createTransaction']);
 Route::post('/waste-transaction', [UserBalanceController::class, 'createWasteTransaction']);
+Route::get('/history-transaction/{id}', [UserBalanceController::class, 'showByDateRaw']);
 
 Route::get('/bank-balance', [BankController::class, 'index']);
 
 Route::post('send-fcm-notification', [UserController::class, 'sendFcmNotification']);
 Route::get('check/{email}/user', [UserController::class, 'checkEmailUser']);
 Route::get('check/{email}/admin', [UserController::class, 'checkEmailAdmin']);
+
+
+Route::get('/report/download', [ReportController::class, 'downloadReport']);
+Route::get('/report/download/year', function () {
+    return Excel::download(new \App\Exports\WasteRekapMultiYearExport, 'rekap_per_tahun.xlsx');
+});

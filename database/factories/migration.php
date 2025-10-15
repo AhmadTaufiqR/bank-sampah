@@ -1,8 +1,3 @@
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -14,7 +9,7 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id('id_user');
             $table->string('user_name');
-            $table->string('user_password');
+            $table->string('user_password')->nullable();
             $table->string('email')->nullable()->unique();
             $table->string('username')->nullable()->unique();
             $table->string('phone')->nullable();
@@ -27,6 +22,7 @@ return new class extends Migration
             $table->integer('withdrawal_count')->default(0)->nullable();
             $table->decimal('withdrawal_amount', 15, 2)->default(0)->nullable();
             $table->boolean('is_primary')->default(false)->nullable(); // Menambahkan kolom untuk rekening utama
+            $table->string('fcm_token')->nullable();
             $table->timestamps();
         });
 
@@ -67,7 +63,7 @@ return new class extends Migration
             $table->id('id_admin');
             $table->string('admin_name');
             $table->string('email')->unique();
-            $table->string('admin_password');
+            $table->string('admin_password')->nullable();
             $table->string('username')->unique()->nullable();
             $table->string('phone')->nullable();
             $table->string('nik')->nullable();
@@ -75,6 +71,7 @@ return new class extends Migration
             $table->string('tanggal_lahir')->nullable();
             $table->string('address')->nullable();
             $table->string('photo')->nullable();
+            $table->string('fcm_token')->nullable();
             $table->timestamps();
         });
     }
@@ -85,8 +82,6 @@ return new class extends Migration
     }
 };
 
-
-// bank balances
 
 
 return new class extends Migration
@@ -114,7 +109,6 @@ return new class extends Migration
 };
 
 
-// withdrawal
 
 return new class extends Migration
 {
@@ -141,7 +135,6 @@ return new class extends Migration
     }
 };
 
-// notification
 
 
 return new class extends Migration
@@ -154,7 +147,7 @@ return new class extends Migration
             $table->unsignedBigInteger('id_admin')->nullable(); // Bisa null jika belum diverifikasi
             $table->string('message_content');
             $table->date('date');
-            $table->string('status')->default('pending'); // Menambahkan status: pending, verified, rejected
+            $table->string('status')->nullable(); // Menambahkan status: pending, verified, rejected
             $table->timestamps();
 
             $table->foreign('id_user')->references('id_user')->on('users')->onDelete('cascade');
@@ -167,7 +160,6 @@ return new class extends Migration
         Schema::dropIfExists('notifications');
     }
 };
-
 
 
 
@@ -198,7 +190,6 @@ return new class extends Migration
 
 
 
-
 return new class extends Migration
 {
     public function up()
@@ -222,8 +213,6 @@ return new class extends Migration
         Schema::dropIfExists('news');
     }
 };
-
-
 
 
 

@@ -378,4 +378,29 @@ class UserController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get ranking users by total waste deposit (Eloquent version).
+     */
+    public function getUserRanking()
+    {
+        $ranking = User::withSum('wasteTransactions', 'weight')
+            ->orderByDesc('waste_transactions_sum_weight')
+            ->get(['id_user', 'user_name', 'photo']);
+
+        $ranked = $ranking->map(function ($user, $index) {
+            return [
+                'id_user'       => $user->id_user,
+                'user_name'     => $user->user_name,
+                'photo'         => $user->photo ? url('storage/' . $user->photo) : null,
+                'total_weight'  => $user->waste_transactions_sum_weight ?? 0,
+                'rank'          => $index + 1,
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $ranked
+        ]);
+    }
 }

@@ -112,4 +112,15 @@ class ScheduleController extends Controller
             'data' => $insertedSchedules
         ], 201);
     }
+
+    public function deleteAll()
+    {
+        // Hapus semua data dari tabel WasteCollectionSchedule
+        WasteCollectionSchedule::truncate();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'All schedules have been deleted.'
+        ]);
+    }
 }
